@@ -3,16 +3,32 @@ import { genreNames } from './genres.ts';
 import { xrdbUrl } from './tmdb.ts';
 
 /**
- * Strips path separators for the plain (unencoded) filename variant. In the
- * percent-encoded variants these characters are already escaped as `%2F`, so
- * only a literal `/` would break the file path.
+ * Turns an IMDb playlist name into the `genre` value this addon publishes.
+ *
+ * This is the single source of truth for the name. The manifest advertises the
+ * result as a `genre` option, and the catalog files are written under it, so a
+ * client always asks for exactly the name that exists on disk. Deriving the two
+ * separately is what caused 404s.
+ *
+ * A playlist name may legitimately contain a `/` ("En iyi türk dizileri/best
+ * Turkish TV Series"). Percent-encoding it is not enough: the static host
+ * decodes `%2F` back to `/` before it looks at the filesystem, so the request
+ * would be read as a subdirectory and return 404. Substituting the separator is
+ * therefore unavoidable, and doing it once here keeps every published name
+ * consistent.
+ *
+ * Control characters carry no meaning in a list name and are dropped.
  */
-function sanitizeRawName(name: string): string {
+export function catalogGenreName(name: string): string {
 	return name.replace(/[/\\]/g, '-').replace(/[\u0000-\u001F\u007F]/g, '');
 }
 
 /**
  * Every relative file path a catalog page may be requested under.
+ *
+ * `genre` must be the value published in the manifest, i.e. the result of
+ * `catalogGenreName`. It is used verbatim here: this function only varies the
+ * escaping, never the characters themselves.
  *
  * Stremio packs `extra` values into a single path segment (protocol doc:
  * `search=game%20of%20thrones&skip=100`). Client versions may use `%20` or
@@ -36,7 +52,7 @@ export function catalogFileNames(type: MetaType, catalogId: string, genre: strin
 	const names = [
 		`${dir}/genre=${encoded}${tail}.json`,
 		`${dir}/genre=${encoded.replace(/%20/g, '+')}${tail}.json`,
-		`${dir}/genre=${sanitizeRawName(genre)}${tail}.json`,
+		`${dir}/genre=${genre}${tail}.json`,
 	];
 
 	// Names without spaces collapse all three variants into the same file.

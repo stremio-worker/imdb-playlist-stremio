@@ -54,7 +54,14 @@ export interface TmdbMatch {
 export interface Playlist {
 	type: MetaType;
 	listId: string;
+	/** The name as IMDb reports it, kept for logs and for `build-info.json`. */
 	name: string;
+	/**
+	 * The `genre` this playlist is published under: the value advertised in the
+	 * manifest and used verbatim in the catalog file names. Differs from `name`
+	 * when the IMDb name contains a path separator.
+	 */
+	genre: string;
 	/** The meta list Stremio renders, already split into pages of `pageSize`. */
 	pages: CatalogMeta[][];
 }

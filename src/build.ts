@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { loadConfig, writeJson, ensureDir } from './config.ts';
 import { fetchImdbList } from './imdb.ts';
 import { TmdbCache, enrichItems, defaultCacheFile, FatalError } from './tmdb.ts';
-import { buildMeta, catalogFileNames, paginate } from './catalog.ts';
+import { buildMeta, catalogFileNames, catalogGenreName, paginate } from './catalog.ts';
 import { buildManifest, CATALOG_ID, type BuildInfo } from './manifest.ts';
 import type { CatalogMeta, ImdbList, ImdbListItem, MetaType, Playlist } from './types.ts';
 import { matchesMetaType, metaTypeForTitleType } from './types.ts';
@@ -101,8 +101,12 @@ async function main(): Promise<void> {
 			continue;
 		}
 
+		// Resolved once, then used for the manifest, the file names and the
+		// duplicate check, so the three can never disagree.
+		const genre = catalogGenreName(list.name);
+
 		const names = usedNames.get(type) as Set<string>;
-		if (names.has(list.name)) {
+		if (names.has(genre)) {
 			console.warn(
 				`[build] skipping ${listId}: a playlist named "${list.name}" (${type}) already exists — ` +
 					'two playlists with the same name cannot be told apart by the user.',
@@ -134,8 +138,8 @@ async function main(): Promise<void> {
 			return buildMeta(item, type, match);
 		});
 
-		names.add(list.name);
-		playlists.push({ type, listId, name: list.name, pages: paginate(metas, config.pageSize) });
+		names.add(genre);
+		playlists.push({ type, listId, name: list.name, genre, pages: paginate(metas, config.pageSize) });
 		totalItems.count += metas.length;
 
 		console.log(
@@ -155,7 +159,7 @@ async function main(): Promise<void> {
 		for (let pageIndex = 0; pageIndex < playlist.pages.length; pageIndex++) {
 			const page = playlist.pages[pageIndex] as CatalogMeta[];
 			const skip = pageIndex * config.pageSize;
-			for (const fileName of catalogFileNames(playlist.type, CATALOG_ID, playlist.name, skip)) {
+			for (const fileName of catalogFileNames(playlist.type, CATALOG_ID, playlist.genre, skip)) {
 				await writeJson(path.join(config.siteDir, fileName), {
 					metas: page,
 					// Stremio clients can read cache directives from the response body.
@@ -190,6 +194,7 @@ async function main(): Promise<void> {
 			type: p.type,
 			listId: p.listId,
 			name: p.name,
+			genre: p.genre,
 			itemCount: p.pages.reduce((n, page) => n + page.length, 0),
 			pageCount: p.pages.length,
 		})),

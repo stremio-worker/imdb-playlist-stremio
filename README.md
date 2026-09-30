@@ -167,6 +167,7 @@ it change exactly when it should:
 | --- | --- |
 | A playlist is added or removed | changes |
 | A playlist's name changes on IMDb | changes |
+| A name's path separator is rewritten | changes |
 | A playlist's contents change on IMDb | changes |
 | Same lists, listed in a different order | **unchanged** |
 | Rebuild with no source change | **unchanged** |
@@ -242,6 +243,37 @@ Paste `https://stremio-worker.github.io/imdb-playlist-stremio/manifest.json`
 into **Add-ons → Add-on Repository**.
 
 ## File layout
+
+### How a playlist name becomes a `genre`
+
+The name IMDb reports is not always usable in a URL, so it is turned into the
+`genre` value this addon publishes. A playlist literally named
+
+```
+En iyi türk dizileri/best Turkish TV Series
+```
+
+is published as
+
+```
+En iyi türk dizileri-best Turkish TV Series
+```
+
+The `/` becomes `-`. Percent-encoding it would not work: the host decodes `%2F`
+back to `/` before it looks at the filesystem, so the request would be read as a
+subdirectory and return 404.
+
+The substitution is applied once, to a single value. The manifest advertises
+that value as the `genre` option and the catalog files are written under the
+same one, so what the client reads is exactly what exists on disk. This matters
+because a client requests the `genre` string verbatim — a mismatch between the
+manifest and the file names is a 404 with no other symptom.
+
+Both names are reported in `build-info.json`: `name` is what IMDb returned,
+`genre` is what the addon published. They differ only for a name containing a
+path separator.
+
+### Path variants
 
 Stremio packs `extra` values into a single path segment
 (`genre=Top%20250%20TV%20Series&skip=100.json`). Client versions differ in how

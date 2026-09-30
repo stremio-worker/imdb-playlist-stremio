@@ -22,9 +22,11 @@ export function buildManifest(playlists: Playlist[], info: BuildInfo): Manifest 
 	const catalogs: ManifestCatalog[] = [];
 
 	for (const type of ['movie', 'series'] as MetaType[]) {
+		// `genre`, not `name`: it is the exact value the catalog files are
+		// written under, so the name the client reads here always resolves.
 		const names = playlists
 			.filter((playlist) => playlist.type === type)
-			.map((playlist) => playlist.name);
+			.map((playlist) => playlist.genre);
 
 		// Declaring an empty catalog shows a blank row in Stremio.
 		if (names.length === 0) continue;
@@ -80,7 +82,7 @@ function contentVersion(playlists: Playlist[]): string {
 		.map((playlist) => ({
 			type: playlist.type,
 			listId: playlist.listId,
-			name: playlist.name,
+			genre: playlist.genre,
 			pages: playlist.pages.map((page) => page.map((meta) => `${meta.id}:${meta.type}`)),
 		}))
 		.sort((a, b) => a.type.localeCompare(b.type) || a.listId.localeCompare(b.listId));
