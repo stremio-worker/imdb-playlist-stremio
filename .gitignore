@@ -1,0 +1,20 @@
+node_modules/
+dist/
+# Build output. GitHub Actions pushes this to the gh-pages branch separately,
+# so it is not kept on main.
+site/
+
+.env
+.env.*
+!.env.example
+
+*.tsbuildinfo
+*.log
+npm-debug.log*
+
+.DS_Store
+.cache/
+last-build.json
+
+# Temporary local scripts
+scripts/

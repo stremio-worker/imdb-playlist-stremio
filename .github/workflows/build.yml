@@ -1,0 +1,70 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsconfig.json'
+      - '.github/workflows/build.yml'
+  schedule:
+    # Mondays 04:17 UTC. An off-the-hour minute to avoid the crowded scheduling slot.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore TMDB cache
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          # Every run writes a fresh cache and restores the most recent one.
+          key: tmdb-${{ github.run_id }}
+          restore-keys: tmdb-
+
+      - name: Build static site
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          IMDB_MOVIE_LISTS: ${{ vars.IMDB_MOVIE_LISTS }}
+          IMDB_SERIES_LISTS: ${{ vars.IMDB_SERIES_LISTS }}
+        run: npm run build
+
+      # site/ is already in .gitignore, so a clean repo is initialised inside it
+      # and gh-pages is rewritten wholesale. The force-push also clears files
+      # belonging to playlists that no longer exist.
+      - name: Publish to gh-pages
+        working-directory: site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q
+          git checkout -q -b gh-pages
+          git add -A
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "build: run ${{ github.run_number }} (${GITHUB_SHA:0:7})"
+          git push --force \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            gh-pages

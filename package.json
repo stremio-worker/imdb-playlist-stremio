@@ -1,0 +1,19 @@
+{
+	"name": "imdb-playlist-stremio",
+	"version": "1.0.0",
+	"private": true,
+	"description": "GitHub Pages addon that turns IMDb playlists into static Stremio catalogs",
+	"type": "module",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json && node dist/build.js",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"clean": "rm -rf dist site .cache"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"typescript": "^5.5.2"
+	}
+}
